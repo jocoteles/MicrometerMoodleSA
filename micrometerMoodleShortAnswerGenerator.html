@@ -1,0 +1,391 @@
+<html>
+
+<head>
+    <title>Micrometer Moodle Short Answer Generator</title>
+</head>
+
+<body id="body">
+	<div>
+	<h1><center>Moodle short answers question generator for Micrometer</center></h1>		
+    <div>
+        <label for="questionText"><b>Question text:</b></label><br>
+        <textarea id="questionText" rows="6" cols="100" style="background-color:azure;">
+<p>Enter the micrometer reading in millimeters with the correct number of decimal places.</p>
+<p>To zoom in, use the slider below the micrometer image. To pan the micrometer, use the horizontal and vertical sliders inside the image box.</p>
+        </textarea>
+    </div><br>
+    <div id="microTypes">
+        <span><b>Types of micrometer to be included in the questions:</b></span>			
+        <ul>
+            <li>
+                <input type="checkbox" id="t5" name="microType" value="5" onchange="updateMicroType()" checked>
+                <label for="5"> 5 divisions of the Thimble</label>
+            </li>
+            <li>
+                <input type="checkbox" id="t25" name="microType" value="25" onchange="updateMicroType()" checked>
+                <label for="25"> 25 divisions of the Thimble</label>    
+            </li>
+            <li>
+                <input type="checkbox" id="t50" name="microType" value="50" onchange="updateMicroType()" checked>
+                <label for="50"> 50 divisions of the Thimble</label>
+            </li>            
+        </ul>        
+    </div><br>
+    <div>
+        <label for="numberQuestions"><b>Number of random questions (1 - 1000):</b> </label>
+        <input type="number" id="numberQuestions" min="1" max="1000" step="1" value="100" oninput="this.value=this.value.replace(/[^0-9]/g,'');" onchange="this.value=Math.max(this.min, Math.min(this.value, this.max));">
+    </div><br>
+
+    <div id="decimalSeparator">
+        <span><b>Decimal separators accepted:</b></span>			
+        <ul>
+            <li>
+                <input type="checkbox" name="decimal" value="dot" onchange="updateDecimal()" checked>
+                <label for="dot"> dot</label>
+            </li>
+            <li>
+                <input type="checkbox" name="decimal" value="comma" onchange="updateDecimal()" checked>
+                <label for="comma"> comma</label>
+            </li>
+        </ul>        
+    </div><br>    
+    <div>
+        <label for="penalty"><b>Penalty for each wrong attempt (0.0 - 1.0):</b> </label>
+        <input type="number" id="penalty" min="0" max="1.0" value="1.0" onchange="this.value=Math.max(this.min, Math.min(this.value, this.max));">
+    </div>
+	
+    <br>
+    <button onclick="generateXML()"><strong>Generate Moodle XML file</strong></button>
+    <br><br>
+    <button onclick="generateSample()">Render new sample</button>
+    <span>Reading: <span id="reading"></span> mm</span><br><br>    
+
+    <div id="outputDiv">
+        <div id="screenDiv" style="display:none;">
+            <svg id="screen" width="712" height="264" viewBox="0 0 712 264" xmlns="http://www.w3.org/2000/svg"></svg>
+        </div>        
+        <div style="max-height:264;overflow:scroll;border-style:solid;background-color:papayawhip;">
+            <canvas id="can" xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'></canvas>
+        </div>
+        <label for="canvasScale">Zoom: </label><input id="canvasScale" type="range" min="0.3" max="1.0" value="1.0" step="0.05" class="slider" onchange="rescaleCanvas(this.value)">
+    </div>
+   	
+    <script id="canvgScript" src="https://cdnjs.cloudflare.com/ajax/libs/canvg/3.0.10/umd.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.0/FileSaver.min.js"></script>
+    
+
+    <script>
+
+        let microTypesChecked = [];
+        let posString = '';
+
+        function updateMicroType () {            
+            let types = document.getElementsByName('microType');
+            microTypesChecked = [];
+            for (let typeCheckElem of types) {                
+                if (typeCheckElem.checked) microTypesChecked.push(typeCheckElem);
+                typeCheckElem.disabled = false;
+            }
+            if (microTypesChecked.length == 1) microTypesChecked[0].disabled = true;
+        }
+
+        function generateRandomMicrometer () {
+            let ndiv = microTypesChecked[Math.floor(Math.random()*microTypesChecked.length)];            
+            let Nd = parseInt(ndiv.value);            
+            let x = Math.floor(Math.random()*(25*Nd*4+1))/(Nd*4); //twig: random(0,25*Nd*4)/(Nd*4);
+            let x0 = Math.floor(5 + Math.random()*(14-5+1))*5; //twig: random(5,14)*5;
+            let r = x - Math.floor(x); //twig: x - x|round(0, 'floor');
+            let ang = r*720;    
+            let k = 1 + Math.floor(Math.random(100)); //twig: random(1,100);    
+            let s1 = 1*k/10;
+            let s2 = 2*k/10;
+            let fontsize = 25*k/10;
+            let width = k*89;
+            let height = k*33;
+            let Dw = k*2;
+            let Dh = k*19;
+            let Aw = k*29;
+            let Ah = k*17;
+            let Bw = k*27;
+            let Bx = k*(4 + x);
+            let Cw = k*7;
+            let Ch = k*4;
+            let Cr = k*5;    
+            let H0 = k*4;    
+            let Hstep = k*1;
+            let Rg = k*4;    
+            
+            let d = 2;
+            if (Nd == 50) d = 3;
+            posString = (x0 + x).toFixed(d);
+
+            let $micro = document.getElementById("screen");
+            $micro.innerHTML = "";        
+            $micro.setAttribute('viewBox', "0 0 " + width.toString() + " " + height.toString());
+                        
+            let svgns = "http://www.w3.org/2000/svg";    
+            
+            let A = document.createElementNS(svgns, 'polygon');        
+            let Aarray = [
+                [Dw, height/2-Ah/2],
+                [Dw+Aw, height/2-Ah/2],
+                [Dw+Aw, height/2+Ah/2],
+                [Dw, height/2+Ah/2]
+            ];        
+            A.setAttribute('points', arrayToPoly(Aarray));
+            A.setAttribute('style', `fill:white;stroke:black;stroke-width:${s2}px`);
+            $micro.appendChild(A);
+            let Hline = document.createElementNS(svgns, 'polyline');        
+            let HlineArray = [
+                [Dw, height/2],
+                [Dw+Aw, height/2]
+            ]
+            Hline.setAttribute('points', arrayToPoly(HlineArray));
+            Hline.setAttribute('style', `fill:white;stroke:red;stroke-width:${s1}px`);
+            $micro.appendChild(Hline);
+            for (i = 0; i <= 5; i++) {
+                let line = document.createElementNS(svgns, 'polyline');        
+                let lineArray = [
+                    [H0 + i*5*Hstep, height/2],
+                    [H0 + i*5*Hstep, height/2-Ah/3]
+                ];
+                line.setAttribute('points', arrayToPoly(lineArray));            
+                line.setAttribute('style', `fill:white;stroke:black;stroke-width:${s1}px`);
+                $micro.appendChild(line);
+                let text = document.createElementNS(svgns, 'text');
+                text.setAttribute('x', String(H0 + i*5*Hstep - fontsize/4));
+                text.setAttribute('y', String(height/2-Ah/2.75));
+                text.innerHTML = String(x0+i*5);
+                text.setAttribute('style', `font: normal ${fontsize}px sans-serif;`);
+                $micro.appendChild(text); 
+            }
+            for (i = 0; i <= 25; i++) {
+                let line = document.createElementNS(svgns, 'polyline');        
+                let lineArray = [
+                    [H0 + i*Hstep, height/2],
+                    [H0 + i*Hstep, height/2-Ah/4]
+                ];
+                line.setAttribute('points', arrayToPoly(lineArray));            
+                line.setAttribute('style', `fill:white;stroke:black;stroke-width:${s1}px`);
+                $micro.appendChild(line);            
+            }
+            for (i = 0; i <= 25; i++) {
+                let line = document.createElementNS(svgns, 'polyline');        
+                let lineArray = [
+                    [H0 + (i+0.5)*Hstep, height/2],
+                    [H0 + (i+0.5)*Hstep, height/2+Ah/4]
+                ];
+                line.setAttribute('points', arrayToPoly(lineArray));            
+                line.setAttribute('style', `fill:white;stroke:black;stroke-width:${s1}px`);
+                $micro.appendChild(line);            
+            }
+            
+            let C = document.createElementNS(svgns, 'polygon');        
+            let Carray = [            
+                [0, height/2+Ah/2],
+                [Cw, height/2+Ah/2+Ch],
+                [Bw, height/2+Ah/2+Ch],
+                [Bw, height/2-Ah/2-Ch],
+                [Cw, height/2-Ah/2-Ch],
+                [0, height/2-Ah/2]
+            ];        
+            C.setAttribute('points', arrayToPoly(Carray));
+            C.setAttribute('style', `fill:gainsboro;stroke:black;stroke-width:${s1}px`);
+            C.setAttribute('opacity', "0.5");
+            C.setAttribute('transform', `translate(${Bx}, 0)`);
+            $micro.appendChild(C);        
+
+            let Rgroup = document.createElementNS(svgns, 'g');                        
+            let Re = document.createElementNS(svgns, 'circle');                
+            Re.setAttribute('r', String(Ch+Ah/2));
+            Re.setAttribute('cx', "0");
+            Re.setAttribute('cy', "0");
+            Re.setAttribute('style', `fill:gainsboro;stroke:black;stroke-width:${s2}px`);
+            Re.setAttribute('opacity', "0.5");
+            Rgroup.appendChild(Re);
+            let Ri = document.createElementNS(svgns, 'circle');                
+            Ri.setAttribute('r', String(Ah/2));
+            Ri.setAttribute('cx', "0");
+            Ri.setAttribute('cy', "0");
+            Ri.setAttribute('style', `fill:white;stroke:black;stroke-width:${s2}px`);
+            Rgroup.appendChild(Ri);
+            for (i = 0; i < Nd; i++) {
+                let line = document.createElementNS(svgns, 'polyline');        
+                let ang = -i*Math.PI*2/Nd;
+                let x0 = (Ah/2)*Math.cos(ang);
+                let y0 = (Ah/2)*Math.sin(ang);
+                let x1 = (Ah/2+Ch*0.5)*Math.cos(ang);
+                let y1 = (Ah/2+Ch*0.5)*Math.sin(ang);
+                let lineArray = [
+                    [x0, y0],
+                    [x1, y1]
+                ];
+                line.setAttribute('points', arrayToPoly(lineArray));            
+                line.setAttribute('style', `fill:white;stroke:black;stroke-width:${s1}px`);
+                Rgroup.appendChild(line);    
+                if (Nd == 5) {
+                    let text = document.createElementNS(svgns, 'text');
+                    text.setAttribute('x', String(Ah/2+Ch*1.1));
+                    text.setAttribute('y', String(fontsize/4));
+                    text.innerHTML = String(i);                
+                    text.setAttribute('style', `font: normal ${fontsize}px sans-serif;`);            
+                    text.setAttribute('transform', `rotate(${ang*180/Math.PI}, 0, 0)`);
+                    Rgroup.appendChild(text);
+                }        
+            }
+            for (i = 0; i < Nd/5; i++) {
+                let line = document.createElementNS(svgns, 'polyline');        
+                let ang = -i*Math.PI*2/(Nd/5);
+                let x0 = (Ah/2)*Math.cos(ang);
+                let y0 = (Ah/2)*Math.sin(ang);
+                let x1 = (Ah/2+Ch*0.8)*Math.cos(ang);
+                let y1 = (Ah/2+Ch*0.8)*Math.sin(ang);
+                let lineArray = [
+                    [x0, y0],
+                    [x1, y1]
+                ];
+                line.setAttribute('points', arrayToPoly(lineArray));            
+                line.setAttribute('style', `fill:white;stroke:black;stroke-width:${s1}px`);
+                Rgroup.appendChild(line);
+                let text = document.createElementNS(svgns, 'text');
+                text.setAttribute('x', String(Ah/2+Ch*1.1));
+                text.setAttribute('y', String(fontsize/4));
+                if (Nd == 25) text.innerHTML = String(i*10);
+                else text.innerHTML = String(i*5);
+                text.setAttribute('style', `font: normal ${fontsize}px sans-serif;`);            
+                text.setAttribute('transform', `rotate(${ang*180/Math.PI}, 0, 0)`);
+                Rgroup.appendChild(text);
+            }                                
+            let Rd = Bx+Bw+Rg+Ch+Ah/2;        
+            Rgroup.setAttribute('transform', `translate(${Rd}, ${height/2}) rotate(${ang}, 0, 0)`);
+            $micro.appendChild(Rgroup);
+
+            let Rline = document.createElementNS(svgns, 'polyline');        
+            let RlineArray = [
+                [Rd, height/2],
+                [Rd+Ah/2, height/2]
+            ]
+            Rline.setAttribute('points', arrayToPoly(RlineArray));
+            Rline.setAttribute('style', `fill:white;stroke:red;stroke-width:${s2}px`);        
+            $micro.appendChild(Rline);
+
+            function arrayToPoly(array) {
+                let s = "";
+                for (a of array) {
+                    s += String(a[0]) + "," + String(a[1]) + " ";
+                }
+                return s;
+            }
+        }
+    
+        function updateDecimal() {            
+            let decimals = document.getElementsByName('decimal');
+            decimalsChecked = [];
+            for (let decimalElem of decimals) {                
+                if (decimalElem.checked) decimalsChecked.push(decimalElem);
+                decimalElem.disabled = false;
+            }
+            if (decimalsChecked.length == 1) decimalsChecked[0].disabled = true;
+        }
+
+        updateMicroType();
+        updateDecimal();
+        generateRandomMicrometer();
+        document.getElementById("reading").innerHTML = posString;
+    
+    </script>
+
+    <script id="zoomScript">
+        let $tempCanvas = document.createElement('canvas');
+        let $realCanvas = document.getElementById('can');
+
+        let rcw = document.getElementById('screen').width.baseVal.value;
+        let rch = document.getElementById('screen').height.baseVal.value;
+        console.log(document.getElementById('screen').width);
+        $realCanvas.width = rcw;
+        $realCanvas.height = rch;
+        $tempCanvas.width = rcw;
+        $tempCanvas.height = rch;
+        let tctx = $tempCanvas.getContext('2d');
+        let screenContent = document.getElementById('screen').outerHTML;            
+        let vCanvg = canvg.Canvg.fromString(tctx, screenContent);            
+        vCanvg.render();
+
+        function cleanScreen () {        
+            document.getElementById('screenDiv').innerHTML = "";
+            document.getElementById('screenDiv').remove();
+        }
+
+        function rescaleCanvas (value) {  
+            let ctx = $realCanvas.getContext('2d');                          
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, rcw, rch);            
+            $realCanvas.width = rcw*value;
+            $realCanvas.height = rch*value;            
+            ctx.drawImage($tempCanvas,0,0,rcw,rch,0,0,rcw*value,rch*value);              
+        }
+
+        rescaleCanvas(document.getElementById('canvasScale').value);
+    </script>
+
+    <script>
+        function generateHTML () {
+            let htmlText = "<html>";
+
+            htmlText += '<p>' + document.getElementById('questionText').value + '</p>';
+            htmlText += document.getElementById("outputDiv").outerHTML;
+            htmlText += document.getElementById("canvgScript").outerHTML; 
+            htmlText += "<script>";
+            htmlText += document.getElementById("zoomScript").innerHTML;            
+            htmlText += "cleanScreen(); </"+"script>";
+            htmlText += "</html>";
+            
+            return htmlText;
+        }
+
+        function generateXML () {  
+            
+            updateMicroType();            
+            updateDecimal();            
+            
+            let baseQuestion = '\n\n<!-- question: #questionNumber  --><question type="shortanswer"><name><text>Micrometer question #questionNumber</text></name><questiontext format="html"><text><![CDATA[#questionText]]></text></questiontext><generalfeedback format="html"><text></text></generalfeedback><defaultgrade>1</defaultgrade><penalty>#penalty</penalty><hidden>0</hidden><idnumber></idnumber><usecase>0</usecase>#answers</question>';
+            let baseAnswer = '<answer fraction="100" format="moodle_auto_format"><text>#answer</text><feedback format="html"><text></text></feedback></answer>';
+            let xmlText = '<?xml version="1.0" encoding="UTF-8"?><quiz>';
+            
+            let N = parseInt(document.getElementById("numberQuestions").value);
+            for (let i = 1; i <= N; i++) {
+                generateRandomMicrometer();
+                let htmlQuestionText = generateHTML();
+                let penalty = document.getElementById('penalty').value;
+                let answers = '';                
+                for (let decimal of decimalsChecked) {                    
+                    if (decimal.value == 'dot') answers += baseAnswer.replace('#answer', posString.replace(',', '.'));
+                    else answers += baseAnswer.replace('#answer', posString.replace('.', ','));
+                }
+                let questionExpr = new RegExp("#questionNumber", "g");
+                let tempQuestion = baseQuestion.replace(questionExpr, String(i));
+                tempQuestion = tempQuestion.replace('#questionText', htmlQuestionText);
+                tempQuestion = tempQuestion.replace('#penalty', penalty);
+                tempQuestion = tempQuestion.replace('#answers', answers);
+                xmlText += tempQuestion;
+            }
+            xmlText += '\n\n</quiz>';
+
+            let blob = new Blob([xmlText], {type: "text/plain;charset=utf-8"});
+            saveAs(blob, "output.xml");            
+        }
+
+        function generateSample() {                        
+            updateMicroType();
+            generateRandomMicrometer();            
+            let screenContent = document.getElementById('screen').outerHTML;            
+            vCanvg = canvg.Canvg.fromString(tctx, screenContent);            
+            vCanvg.render();            
+            document.getElementById("reading").innerHTML = posString;
+            rescaleCanvas(document.getElementById('canvasScale').value);
+        }
+    </script>
+
+</body>
+
+</html>
