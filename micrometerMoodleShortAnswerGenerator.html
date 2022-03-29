@@ -2,19 +2,34 @@
 
 <head>
     <title>Micrometer Moodle Short Answer Generator</title>
+    <style>
+        .framed {
+            background-color: rgb(220, 220, 220);
+            border-style: groove;
+            padding: 7px;
+            margin: 10px 5px;
+        }
+        button {
+            background-color: khaki;
+            padding: 10px;
+            margin: 10px 5px;
+            border-width: 2px;
+            border-radius: 7px;
+            font-size: large;
+        }
+    </style>
 </head>
 
 <body id="body">
 	<div>
 	<h1><center>Moodle short answers question generator for Micrometer</center></h1>		
-    <div>
-        <label for="questionText"><b>Question text:</b></label><br>
-        <textarea id="questionText" rows="6" cols="100" style="background-color:azure;">
-<p>Enter the micrometer reading in millimeters with the correct number of decimal places.</p>
-<p>To zoom in, use the slider below the micrometer image. To pan the micrometer, use the horizontal and vertical sliders inside the image box.</p>
+    <div class="framed">
+        <label for="questionText"><b>Question text:</b></label>
+        <textarea id="questionText" rows="6" style="width:100%;background-color:azure;">
+Enter the micrometer reading in millimeters with the correct number of decimal places.
         </textarea>
-    </div><br>
-    <div id="microTypes">
+    </div>
+    <div id="microTypes" class="framed">
         <span><b>Types of micrometer to be included in the questions:</b></span>			
         <ul>
             <li>
@@ -30,13 +45,18 @@
                 <label for="50"> 50 divisions of the Thimble</label>
             </li>            
         </ul>        
-    </div><br>
-    <div>
+    </div>
+    
+    <div class="framed">
+        <label for="opacity"><b>Thimble opacity:</b> </label><input type="range" id="opacity" min="0.5" max="1.0" step="0.1" value="0.5" onchange="updateOpacity();generateSample()"><span id="opVal"></span>    
+    </div>
+
+    <div class="framed">
         <label for="numberQuestions"><b>Number of random questions (1 - 1000):</b> </label>
         <input type="number" id="numberQuestions" min="1" max="1000" step="1" value="100" oninput="this.value=this.value.replace(/[^0-9]/g,'');" onchange="this.value=Math.max(this.min, Math.min(this.value, this.max));">
-    </div><br>
+    </div>   
 
-    <div id="decimalSeparator">
+    <div id="decimalSeparator" class="framed">
         <span><b>Decimal separators accepted:</b></span>			
         <ul>
             <li>
@@ -48,26 +68,23 @@
                 <label for="comma"> comma</label>
             </li>
         </ul>        
-    </div><br>    
-    <div>
+    </div>    
+    <div class="framed">
         <label for="penalty"><b>Penalty for each wrong attempt (0.0 - 1.0):</b> </label>
         <input type="number" id="penalty" min="0" max="1.0" value="1.0" onchange="this.value=Math.max(this.min, Math.min(this.value, this.max));">
-    </div>
-	
-    <br>
-    <button onclick="generateXML()"><strong>Generate Moodle XML file</strong></button>
-    <br><br>
+    </div>	
+    
+    <button onclick="generateXML()"><strong>Generate Moodle XML file</strong></button>    
     <button onclick="generateSample()">Render new sample</button>
-    <span>Reading: <span id="reading"></span> mm</span><br><br>    
+    <span>Reading: <span id="reading"></span> mm</span>
 
     <div id="outputDiv">
         <div id="screenDiv" style="display:none;">
-            <svg id="screen" width="712" height="264" viewBox="0 0 712 264" xmlns="http://www.w3.org/2000/svg"></svg>
+            <svg id="screen" width="900" height="340" viewBox="0 0 900 340" xmlns="http://www.w3.org/2000/svg"></svg>
         </div>        
-        <div style="max-height:264;overflow:scroll;border-style:solid;background-color:papayawhip;">
+        <div style="overflow:scroll;width:100%;border-style:solid;background-color:papayawhip;">
             <canvas id="can" xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'></canvas>
-        </div>
-        <label for="canvasScale">Zoom: </label><input id="canvasScale" type="range" min="0.3" max="1.0" value="1.0" step="0.05" class="slider" onchange="rescaleCanvas(this.value)">
+        </div>        
     </div>
    	
     <script id="canvgScript" src="https://cdnjs.cloudflare.com/ajax/libs/canvg/3.0.10/umd.js"></script>
@@ -92,7 +109,7 @@
         function generateRandomMicrometer () {
             let ndiv = microTypesChecked[Math.floor(Math.random()*microTypesChecked.length)];            
             let Nd = parseInt(ndiv.value);            
-            let x = Math.floor(Math.random()*(25*Nd*4+1))/(Nd*4); //twig: random(0,25*Nd*4)/(Nd*4);
+            let x = 2.0 + Math.floor(Math.random()*(23*Nd*4+1))/(Nd*4); //twig: random(2,25*Nd*4)/(Nd*4);
             let x0 = Math.floor(5 + Math.random()*(14-5+1))*5; //twig: random(5,14)*5;
             let r = x - Math.floor(x); //twig: x - x|round(0, 'floor');
             let ang = r*720;    
@@ -117,7 +134,7 @@
             
             let d = 2;
             if (Nd == 50) d = 3;
-            posString = (x0 + x).toFixed(d);
+            posString = (x0 + x).toFixed(d);            
 
             let $micro = document.getElementById("screen");
             $micro.innerHTML = "";        
@@ -189,9 +206,10 @@
                 [Cw, height/2-Ah/2-Ch],
                 [0, height/2-Ah/2]
             ];        
+            let opacity = document.getElementById('opacity').value;
             C.setAttribute('points', arrayToPoly(Carray));
             C.setAttribute('style', `fill:gainsboro;stroke:black;stroke-width:${s1}px`);
-            C.setAttribute('opacity', "0.5");
+            C.setAttribute('opacity', opacity);
             C.setAttribute('transform', `translate(${Bx}, 0)`);
             $micro.appendChild(C);        
 
@@ -201,7 +219,7 @@
             Re.setAttribute('cx', "0");
             Re.setAttribute('cy', "0");
             Re.setAttribute('style', `fill:gainsboro;stroke:black;stroke-width:${s2}px`);
-            Re.setAttribute('opacity', "0.5");
+            Re.setAttribute('opacity', opacity);
             Rgroup.appendChild(Re);
             let Ri = document.createElementNS(svgns, 'circle');                
             Ri.setAttribute('r', String(Ah/2));
@@ -278,7 +296,7 @@
             }
         }
     
-        function updateDecimal() {            
+        function updateDecimal () {            
             let decimals = document.getElementsByName('decimal');
             decimalsChecked = [];
             for (let decimalElem of decimals) {                
@@ -288,27 +306,31 @@
             if (decimalsChecked.length == 1) decimalsChecked[0].disabled = true;
         }
 
+        function updateOpacity () {
+            document.getElementById('opVal').innerHTML = document.getElementById('opacity').value*100 + '%';            
+        }
+
         updateMicroType();
         updateDecimal();
+        updateOpacity();
         generateRandomMicrometer();
         document.getElementById("reading").innerHTML = posString;
+
+        console.log(document.getElementById('opacity').value);
     
     </script>
 
-    <script id="zoomScript">
-        let $tempCanvas = document.createElement('canvas');
+    <script id="zoomScript">        
         let $realCanvas = document.getElementById('can');
 
         let rcw = document.getElementById('screen').width.baseVal.value;
         let rch = document.getElementById('screen').height.baseVal.value;
-        console.log(document.getElementById('screen').width);
+        
         $realCanvas.width = rcw;
-        $realCanvas.height = rch;
-        $tempCanvas.width = rcw;
-        $tempCanvas.height = rch;
-        let tctx = $tempCanvas.getContext('2d');
+        $realCanvas.height = rch;        
+        let ctx = $realCanvas.getContext('2d');
         let screenContent = document.getElementById('screen').outerHTML;            
-        let vCanvg = canvg.Canvg.fromString(tctx, screenContent);            
+        let vCanvg = canvg.Canvg.fromString(ctx, screenContent);            
         vCanvg.render();
 
         function cleanScreen () {        
@@ -316,16 +338,6 @@
             document.getElementById('screenDiv').remove();
         }
 
-        function rescaleCanvas (value) {  
-            let ctx = $realCanvas.getContext('2d');                          
-            ctx.fillStyle = 'white';
-            ctx.fillRect(0, 0, rcw, rch);            
-            $realCanvas.width = rcw*value;
-            $realCanvas.height = rch*value;            
-            ctx.drawImage($tempCanvas,0,0,rcw,rch,0,0,rcw*value,rch*value);              
-        }
-
-        rescaleCanvas(document.getElementById('canvasScale').value);
     </script>
 
     <script>
@@ -372,17 +384,16 @@
             xmlText += '\n\n</quiz>';
 
             let blob = new Blob([xmlText], {type: "text/plain;charset=utf-8"});
-            saveAs(blob, "output.xml");            
+            saveAs(blob, "micrometer_moodle.xml");            
         }
 
         function generateSample() {                        
             updateMicroType();
             generateRandomMicrometer();            
             let screenContent = document.getElementById('screen').outerHTML;            
-            vCanvg = canvg.Canvg.fromString(tctx, screenContent);            
+            vCanvg = canvg.Canvg.fromString(ctx, screenContent);            
             vCanvg.render();            
-            document.getElementById("reading").innerHTML = posString;
-            rescaleCanvas(document.getElementById('canvasScale').value);
+            document.getElementById("reading").innerHTML = posString;            
         }
     </script>
 
