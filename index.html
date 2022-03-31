@@ -25,7 +25,7 @@
 	<h1><center>Moodle short answers question generator for Micrometer</center></h1>		
     <div class="framed">
         <label for="questionText"><b>Question text:</b></label>
-        <textarea id="questionText" rows="6" style="width:100%;background-color:azure;">
+        <textarea id="questionText" rows="6" style="resize:none;width:100%;background-color:azure;">
 Enter the micrometer reading in millimeters with the correct number of decimal places.
         </textarea>
     </div>
@@ -75,7 +75,7 @@ Enter the micrometer reading in millimeters with the correct number of decimal p
     </div>	
     
     <button onclick="generateXML()"><strong>Generate Moodle XML file</strong></button>    
-    <button onclick="generateSample()">Render new sample</button>
+    <button onclick="generateSample()">Render a new sample</button>
     <span>Reading: <span id="reading"></span> mm</span>
 
     <div id="outputDiv">
