@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/476118831.svg)](https://zenodo.org/badge/latestdoi/476118831)
+
 **MicrometerMoodleSA** - Moodle Short Answers question generator for Micrometer
 ==============
 
