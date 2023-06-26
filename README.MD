@@ -16,5 +16,5 @@ After saving the Moodle XML file on the computer, the teacher (or course manager
 
 The micrometer is shown in two distinct views. The linear scale viewing direction is perpendicular to the micrometer screw axis (reproducing the actual view during instrument reading). However, the direction of the thimble scale view corresponds to the direction of the screw axis. This choice has the didactic advantage of observing the thimble scale as a whole, facilitating the evaluation of the number of divisions for measuring the precision and reading of the instrument.
 
-This project uses the Javascript libraries [canvg](https://github.com/canvg/canvg) and [FileSaver.js](https://github.com/eligrey/FileSaver.js/).
+This project uses the Javascript libraries [svg-pan-zoom](https://github.com/bumbu/svg-pan-zoom), [hammerjs](https://github.com/hammerjs/hammer.js) and [FileSaver.js](https://github.com/eligrey/FileSaver.js/).
 

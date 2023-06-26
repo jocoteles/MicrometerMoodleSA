@@ -1,3 +1,16 @@
+<!--
+Copyright 2023 João T. Carvalho-Neto
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
 <html>
 
 <head>
@@ -76,21 +89,23 @@ Enter the micrometer reading in millimeters with the correct number of decimal p
     
     <button onclick="generateXML()"><strong>Generate Moodle XML file</strong></button>    
     <button onclick="generateSample()">Render a new sample</button>
-    <span>Reading: <span id="reading"></span> mm</span>
+    <div>
+        <input type="checkbox" id="showReading" value="readingOn" onchange="showReading()">
+        <label for="comma"> Show reading: </label>
+        <span id="reading"></span>
+    </div>
 
     <div id="outputDiv">
-        <div id="screenDiv" style="display:none;">
-            <svg id="screen" width="900" height="340" viewBox="0 0 900 340" xmlns="http://www.w3.org/2000/svg"></svg>
-        </div>        
-        <div style="overflow:scroll;width:100%;border-style:solid;background-color:papayawhip;">
-            <canvas id="can" xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'></canvas>
-        </div>        
+        <div id="screenDiv" style="height:300px;overflow:hidden;border-style:solid;background-color:papayawhip;">
+            <svg id="screen" width="100%" height="100%" viewBox="0 0 900 340" xmlns="http://www.w3.org/2000/svg"></svg>
+        </div>   
+             
     </div>
    	
-    <script id="canvgScript" src="https://cdnjs.cloudflare.com/ajax/libs/canvg/3.0.10/umd.js"></script>
+    <script id="svgPanZoomSrc" src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.5.0/dist/svg-pan-zoom.min.js"></script>
+    <script id="hammerSrc" src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.0/FileSaver.min.js"></script>
-    
-
+        
     <script>
 
         let microTypesChecked = [];
@@ -310,35 +325,109 @@ Enter the micrometer reading in millimeters with the correct number of decimal p
             document.getElementById('opVal').innerHTML = document.getElementById('opacity').value*100 + '%';            
         }
 
+        function showReading() {
+            let reading = document.getElementById("reading");
+            if (document.getElementById('showReading').checked) reading.innerHTML = String(posString) + ' mm';
+            else reading.innerHTML = '';
+        }
+
         updateMicroType();
         updateDecimal();
         updateOpacity();
         generateRandomMicrometer();
-        document.getElementById("reading").innerHTML = posString;
-
-        console.log(document.getElementById('opacity').value);
+        showReading();
     
     </script>
 
-    <script id="zoomScript">        
-        let $realCanvas = document.getElementById('can');
+    <script type="text/javascript" id="svgPanZoomConfig">        
+        var eventsHandler;
 
-        let rcw = document.getElementById('screen').width.baseVal.value;
-        let rch = document.getElementById('screen').height.baseVal.value;
-        
-        $realCanvas.width = rcw;
-        $realCanvas.height = rch;        
-        let ctx = $realCanvas.getContext('2d');
-        let screenContent = document.getElementById('screen').outerHTML;            
-        let vCanvg = canvg.Canvg.fromString(ctx, screenContent);            
-        vCanvg.render();
+        eventsHandler = {
+        haltEventListeners: ['touchstart', 'touchend', 'touchmove', 'touchleave', 'touchcancel']
+        , init: function(options) {
+            var instance = options.instance
+            , initialScale = 1
+            , pannedX = 0
+            , pannedY = 0
 
-        function cleanScreen () {        
-            document.getElementById('screenDiv').innerHTML = "";
-            document.getElementById('screenDiv').remove();
+            // Init Hammer
+            // Listen only for pointer and touch events
+            this.hammer = Hammer(options.svgElement, {
+            inputClass: Hammer.SUPPORT_POINTER_EVENTS ? Hammer.PointerEventInput : Hammer.TouchInput
+            })
+
+            // Enable pinch
+            this.hammer.get('pinch').set({enable: true})
+
+            // Handle double tap
+            this.hammer.on('doubletap', function(ev){
+            instance.zoomIn()
+            })
+
+            // Handle pan
+            this.hammer.on('panstart panmove', function(ev){
+            // On pan start reset panned variables
+            if (ev.type === 'panstart') {
+                pannedX = 0
+                pannedY = 0
+            }
+
+            // Pan only the difference
+            instance.panBy({x: ev.deltaX - pannedX, y: ev.deltaY - pannedY})
+            pannedX = ev.deltaX
+            pannedY = ev.deltaY
+            })
+
+            // Handle pinch
+            this.hammer.on('pinchstart pinchmove', function(ev){
+            // On pinch start remember initial zoom
+            if (ev.type === 'pinchstart') {
+                initialScale = instance.getZoom()
+                instance.zoomAtPoint(initialScale * ev.scale, {x: ev.center.x, y: ev.center.y})
+            }
+
+            instance.zoomAtPoint(initialScale * ev.scale, {x: ev.center.x, y: ev.center.y})
+            })
+
+            // Prevent moving the page on some devices when panning over SVG
+            options.svgElement.addEventListener('touchmove', function(e){ e.preventDefault(); });
         }
 
-    </script>
+        , destroy: function(){
+            this.hammer.destroy()
+        }
+        }
+
+        beforePan = function(oldPan, newPan){
+        var stopHorizontal = false
+            , stopVertical = false
+            , gutterWidth = 10
+            , gutterHeight = 10
+            , sizes = this.getSizes()
+            , leftLimit = -((sizes.viewBox.x + sizes.viewBox.width) * sizes.realZoom) + gutterWidth
+            , rightLimit = sizes.width - gutterWidth - (sizes.viewBox.x * sizes.realZoom)
+            , topLimit = -((sizes.viewBox.y + sizes.viewBox.height) * sizes.realZoom) + gutterHeight
+            , bottomLimit = sizes.height - gutterHeight - (sizes.viewBox.y * sizes.realZoom)
+
+        customPan = {}
+        customPan.x = Math.max(leftLimit, Math.min(rightLimit, newPan.x))
+        customPan.y = Math.max(topLimit, Math.min(bottomLimit, newPan.y))
+
+        return customPan
+        }
+        
+        panZoom = svgPanZoom('#screen', {
+            zoomEnabled: true
+            , controlIconsEnabled: true
+            , fit: 1
+            , center: 1
+            , zoomScaleSensitivity: 0.5
+            , minZoom: 1.0
+            , maxZoom: 80
+            , beforePan: beforePan
+            , customEventsHandler: eventsHandler
+        });      
+    </script>    
 
     <script>
         function generateHTML () {
@@ -346,10 +435,9 @@ Enter the micrometer reading in millimeters with the correct number of decimal p
 
             htmlText += '<p>' + document.getElementById('questionText').value + '</p>';
             htmlText += document.getElementById("outputDiv").outerHTML;
-            htmlText += document.getElementById("canvgScript").outerHTML; 
-            htmlText += "<script>";
-            htmlText += document.getElementById("zoomScript").innerHTML;            
-            htmlText += "cleanScreen(); </"+"script>";
+            htmlText += document.getElementById("svgPanZoomSrc").outerHTML;
+            htmlText += document.getElementById("hammerSrc").outerHTML;
+            htmlText += document.getElementById("svgPanZoomConfig").outerHTML;
             htmlText += "</html>";
             
             return htmlText;
@@ -389,11 +477,8 @@ Enter the micrometer reading in millimeters with the correct number of decimal p
 
         function generateSample() {                        
             updateMicroType();
-            generateRandomMicrometer();            
-            let screenContent = document.getElementById('screen').outerHTML;            
-            vCanvg = canvg.Canvg.fromString(ctx, screenContent);            
-            vCanvg.render();            
-            document.getElementById("reading").innerHTML = posString;            
+            generateRandomMicrometer();
+            showReading();
         }
     </script>
 
